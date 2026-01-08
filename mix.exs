@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 James Harton
+# SPDX-FileCopyrightText: 2026 James Harton
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -28,7 +28,11 @@ defmodule Feetech.MixProject do
     ]
   end
 
-  defp dialyzer, do: []
+  defp dialyzer do
+    [
+      plt_add_apps: [:mix]
+    ]
+  end
 
   defp package do
     [
