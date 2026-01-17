@@ -60,6 +60,26 @@ defmodule Feetech.ControlTable.STS3215Test do
       # Should be within one step of original
       assert_in_delta decoded, original, STS3215.position_scale()
     end
+
+    test "encodes negative radians to signed steps" do
+      {:ok, data} = ControlTable.encode(STS3215, :goal_position, -:math.pi())
+      # -π radians = -2048 steps, encoded with bit 15 sign
+      # 0x8000 | 2048 = 0x8800 little-endian = <<0x00, 0x88>>
+      assert data == <<0x00, 0x88>>
+    end
+
+    test "decodes negative signed steps to radians" do
+      # -2048 steps encoded with bit 15 sign = 0x8800
+      {:ok, value} = ControlTable.decode(STS3215, :present_position, <<0x00, 0x88>>)
+      assert_in_delta value, -:math.pi(), 0.001
+    end
+
+    test "round-trip conversion preserves negative value" do
+      original = -1.5
+      {:ok, encoded} = ControlTable.encode(STS3215, :goal_position, original)
+      {:ok, decoded} = ControlTable.decode(STS3215, :goal_position, encoded)
+      assert_in_delta decoded, original, STS3215.position_scale()
+    end
   end
 
   describe "boolean conversion" do
@@ -156,11 +176,79 @@ defmodule Feetech.ControlTable.STS3215Test do
       {:ok, {address, length, conversion}} = ControlTable.get_register(STS3215, :goal_position)
       assert address == 42
       assert length == 2
-      assert conversion == :position
+      assert conversion == :position_signed
     end
 
     test "returns error for unknown register" do
       assert {:error, :unknown_register} = ControlTable.get_register(STS3215, :nonexistent)
+    end
+  end
+
+  describe "position_offset conversion" do
+    test "encodes positive offset" do
+      {:ok, data} = ControlTable.encode(STS3215, :position_offset, 1000)
+      assert data == <<0xE8, 0x03>>
+    end
+
+    test "encodes negative offset with bit 11 sign" do
+      {:ok, data} = ControlTable.encode(STS3215, :position_offset, -1000)
+      # -1000 with bit 11: 0x800 | 1000 = 3048 = 0x0BE8
+      assert data == <<0xE8, 0x0B>>
+    end
+
+    test "decodes negative offset" do
+      {:ok, value} = ControlTable.decode(STS3215, :position_offset, <<0xE8, 0x0B>>)
+      assert value == -1000
+    end
+
+    test "round-trips offset values" do
+      for offset <- [-2000, -1000, 0, 1000, 2000] do
+        {:ok, encoded} = ControlTable.encode(STS3215, :position_offset, offset)
+        {:ok, decoded} = ControlTable.decode(STS3215, :position_offset, encoded)
+        assert decoded == offset
+      end
+    end
+  end
+
+  describe "signed speed conversion" do
+    test "decodes positive speed" do
+      # 10 speed units
+      {:ok, value} = ControlTable.decode(STS3215, :present_speed, <<0x0A, 0x00>>)
+      expected = 10 * STS3215.speed_scale()
+      assert_in_delta value, expected, 0.001
+    end
+
+    test "decodes negative speed" do
+      # -10 speed units with bit 15 sign: 0x8000 | 10 = 0x800A
+      {:ok, value} = ControlTable.decode(STS3215, :present_speed, <<0x0A, 0x80>>)
+      expected = -10 * STS3215.speed_scale()
+      assert_in_delta value, expected, 0.001
+    end
+  end
+
+  describe "signed load conversion" do
+    test "decodes positive load percentage" do
+      # 500 raw = 50% load
+      {:ok, value} = ControlTable.decode(STS3215, :present_load, <<0xF4, 0x01>>)
+      assert_in_delta value, 50.0, 0.1
+    end
+
+    test "decodes negative load with bit 10 sign" do
+      # -500 raw with bit 10 sign: 0x400 | 500 = 1524 = 0x05F4
+      {:ok, value} = ControlTable.decode(STS3215, :present_load, <<0xF4, 0x05>>)
+      assert_in_delta value, -50.0, 0.1
+    end
+
+    test "encodes positive load percentage" do
+      {:ok, data} = ControlTable.encode(STS3215, :present_load, 50.0)
+      # 50% = 500 raw
+      assert data == <<0xF4, 0x01>>
+    end
+
+    test "encodes negative load percentage with bit 10 sign" do
+      {:ok, data} = ControlTable.encode(STS3215, :present_load, -50.0)
+      # -50% = -500 raw, with bit 10 sign: 0x400 | 500 = 1524 = 0x05F4
+      assert data == <<0xF4, 0x05>>
     end
   end
 end

@@ -80,7 +80,7 @@ defmodule Feetech.ControlTable.STS3215 do
       ccw_dead_band: {27, 1, nil},
       overload_current: {28, 2, nil},
       angular_resolution: {30, 1, nil},
-      position_offset: {31, 2, nil},
+      position_offset: {31, 2, {:sign_magnitude, 11}},
       mode: {33, 1, :mode},
       protection_torque: {34, 1, nil},
       protection_time: {35, 1, nil},
@@ -89,14 +89,14 @@ defmodule Feetech.ControlTable.STS3215 do
       # SRAM - volatile settings (address 40-54)
       torque_enable: {40, 1, :bool},
       acceleration: {41, 1, nil},
-      goal_position: {42, 2, :position},
+      goal_position: {42, 2, :position_signed},
       goal_time: {44, 2, nil},
       goal_speed: {46, 2, :speed},
       torque_limit: {48, 2, 0.001},
       lock: {55, 1, :bool},
 
       # SRAM - read-only feedback (address 56+)
-      present_position: {56, 2, :position},
+      present_position: {56, 2, :position_signed},
       present_speed: {58, 2, :speed_signed},
       present_load: {60, 2, :load_signed},
       present_voltage: {62, 1, 0.1},
