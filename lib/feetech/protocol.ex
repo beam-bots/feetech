@@ -324,6 +324,61 @@ defmodule Feetech.Protocol do
     if value > 2_147_483_647, do: value - 4_294_967_296, else: value
   end
 
+  @doc """
+  Encodes a signed integer using sign-magnitude encoding.
+
+  The sign bit position determines where the sign is stored:
+  - Bit 11 for homing_offset (range: -2047 to +2047)
+  - Bit 15 for position values (range: -32767 to +32767)
+
+  ## Examples
+
+      iex> Feetech.Protocol.encode_sign_magnitude(-1000, 11, 2)
+      <<0xE8, 0x0B>>
+
+      iex> Feetech.Protocol.encode_sign_magnitude(1000, 11, 2)
+      <<0xE8, 0x03>>
+  """
+  @spec encode_sign_magnitude(integer(), non_neg_integer(), 1 | 2) :: binary()
+  def encode_sign_magnitude(value, sign_bit, length) do
+    raw =
+      if value < 0 do
+        Bitwise.bor(1 <<< sign_bit, abs(value))
+      else
+        value
+      end
+
+    encode_int(raw, length)
+  end
+
+  @doc """
+  Decodes a sign-magnitude encoded integer.
+
+  The sign bit position determines where the sign is stored:
+  - Bit 11 for homing_offset
+  - Bit 15 for position values
+
+  ## Examples
+
+      iex> Feetech.Protocol.decode_sign_magnitude(<<0xE8, 0x0B>>, 11)
+      -1000
+
+      iex> Feetech.Protocol.decode_sign_magnitude(<<0xE8, 0x03>>, 11)
+      1000
+  """
+  @spec decode_sign_magnitude(binary(), non_neg_integer()) :: integer()
+  def decode_sign_magnitude(data, sign_bit) do
+    raw = decode_int(data)
+    sign_mask = 1 <<< sign_bit
+    magnitude_mask = sign_mask - 1
+
+    if Bitwise.band(raw, sign_mask) != 0 do
+      -Bitwise.band(raw, magnitude_mask)
+    else
+      Bitwise.band(raw, magnitude_mask)
+    end
+  end
+
   defp build_packet(id, instruction, params) do
     length = byte_size(params) + 2
     body = <<id, length, instruction>> <> params

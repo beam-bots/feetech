@@ -195,4 +195,68 @@ defmodule Feetech.ProtocolTest do
       assert Protocol.decode_int_signed(<<0x80>>) == -128
     end
   end
+
+  describe "encode_sign_magnitude/3" do
+    test "encodes positive value with bit 11 sign" do
+      assert Protocol.encode_sign_magnitude(1000, 11, 2) == <<0xE8, 0x03>>
+    end
+
+    test "encodes zero" do
+      assert Protocol.encode_sign_magnitude(0, 11, 2) == <<0x00, 0x00>>
+    end
+
+    test "encodes negative value with bit 11 sign" do
+      # -1000: set bit 11 (0x800), magnitude 1000
+      # Result: 2048 + 1000 = 3048 = 0x0BE8 little-endian
+      assert Protocol.encode_sign_magnitude(-1000, 11, 2) == <<0xE8, 0x0B>>
+    end
+
+    test "encodes negative value with bit 15 sign" do
+      # -1000: set bit 15 (0x8000), magnitude 1000
+      # Result: 32768 + 1000 = 33768 = 0x83E8 little-endian
+      assert Protocol.encode_sign_magnitude(-1000, 15, 2) == <<0xE8, 0x83>>
+    end
+
+    test "encodes negative value with bit 10 sign" do
+      # -500: set bit 10 (0x400), magnitude 500
+      # Result: 1024 + 500 = 1524 = 0x05F4 little-endian
+      assert Protocol.encode_sign_magnitude(-500, 10, 2) == <<0xF4, 0x05>>
+    end
+  end
+
+  describe "decode_sign_magnitude/2" do
+    test "decodes positive value with bit 11 sign" do
+      assert Protocol.decode_sign_magnitude(<<0xE8, 0x03>>, 11) == 1000
+    end
+
+    test "decodes zero" do
+      assert Protocol.decode_sign_magnitude(<<0x00, 0x00>>, 11) == 0
+    end
+
+    test "decodes negative value with bit 11 sign" do
+      assert Protocol.decode_sign_magnitude(<<0xE8, 0x0B>>, 11) == -1000
+    end
+
+    test "decodes negative value with bit 15 sign" do
+      assert Protocol.decode_sign_magnitude(<<0xE8, 0x83>>, 15) == -1000
+    end
+
+    test "decodes negative value with bit 10 sign" do
+      assert Protocol.decode_sign_magnitude(<<0xF4, 0x05>>, 10) == -500
+    end
+
+    test "round-trips positive values" do
+      for value <- [0, 1, 100, 1000, 2047] do
+        encoded = Protocol.encode_sign_magnitude(value, 11, 2)
+        assert Protocol.decode_sign_magnitude(encoded, 11) == value
+      end
+    end
+
+    test "round-trips negative values" do
+      for value <- [-1, -100, -1000, -2047] do
+        encoded = Protocol.encode_sign_magnitude(value, 11, 2)
+        assert Protocol.decode_sign_magnitude(encoded, 11) == value
+      end
+    end
+  end
 end

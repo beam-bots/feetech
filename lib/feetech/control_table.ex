@@ -35,12 +35,14 @@ defmodule Feetech.ControlTable do
     * `nil` - No conversion, raw integer value
     * `:bool` - 0/1 to false/true
     * `float` - Scale factor (e.g., `0.1` for voltage in 0.1V units)
-    * `:position` - Steps to radians (servo-specific)
+    * `:position` - Steps to radians (unsigned, servo-specific)
+    * `:position_signed` - Steps to radians with sign-magnitude encoding (bit 15 = sign)
     * `:speed` - Speed units to rad/s
-    * `:speed_signed` - Signed speed to rad/s
-    * `:load_signed` - Signed load percentage
+    * `:speed_signed` - Signed speed to rad/s (sign-magnitude, bit 15 = sign)
+    * `:load_signed` - Signed load percentage (sign-magnitude, bit 10 = sign)
     * `:mode` - Operating mode enum
     * `:baud_rate` - Baud rate enum
+    * `{:sign_magnitude, sign_bit}` - Raw sign-magnitude with specified sign bit
     * `{module, decode_fun, encode_fun}` - Custom conversion functions
   """
 
@@ -62,12 +64,14 @@ defmodule Feetech.ControlTable do
           nil
           | :bool
           | :position
+          | :position_signed
           | :speed
           | :speed_signed
           | :load_signed
           | :mode
           | :baud_rate
           | float()
+          | {:sign_magnitude, non_neg_integer()}
           | {module(), atom(), atom()}
 
   @typedoc "Register definition tuple"
@@ -147,6 +151,11 @@ defmodule Feetech.ControlTable do
     Protocol.encode_int(steps, length)
   end
 
+  defp encode_value(value, length, :position_signed, table) do
+    steps = round(value / table.position_scale())
+    Protocol.encode_sign_magnitude(steps, 15, length)
+  end
+
   defp encode_value(value, length, :speed, table) do
     raw = round(value / table.speed_scale())
     Protocol.encode_int(raw, length)
@@ -154,12 +163,16 @@ defmodule Feetech.ControlTable do
 
   defp encode_value(value, length, :speed_signed, table) do
     raw = round(value / table.speed_scale())
-    Protocol.encode_int(raw, length)
+    Protocol.encode_sign_magnitude(raw, 15, length)
   end
 
   defp encode_value(value, length, :load_signed, _table) do
     raw = round(value * 10)
-    Protocol.encode_int(raw, length)
+    Protocol.encode_sign_magnitude(raw, 10, length)
+  end
+
+  defp encode_value(value, length, {:sign_magnitude, sign_bit}, _table) do
+    Protocol.encode_sign_magnitude(value, sign_bit, length)
   end
 
   defp encode_value(value, length, :mode, table) do
@@ -193,16 +206,24 @@ defmodule Feetech.ControlTable do
     Protocol.decode_int(data) * table.position_scale()
   end
 
+  defp decode_value(data, :position_signed, table) do
+    Protocol.decode_sign_magnitude(data, 15) * table.position_scale()
+  end
+
   defp decode_value(data, :speed, table) do
     Protocol.decode_int(data) * table.speed_scale()
   end
 
   defp decode_value(data, :speed_signed, table) do
-    Protocol.decode_int_signed(data) * table.speed_scale()
+    Protocol.decode_sign_magnitude(data, 15) * table.speed_scale()
   end
 
   defp decode_value(data, :load_signed, _table) do
-    Protocol.decode_int_signed(data) * 0.1
+    Protocol.decode_sign_magnitude(data, 10) * 0.1
+  end
+
+  defp decode_value(data, {:sign_magnitude, sign_bit}, _table) do
+    Protocol.decode_sign_magnitude(data, sign_bit)
   end
 
   defp decode_value(data, :mode, table) do
