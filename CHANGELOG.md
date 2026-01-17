@@ -11,6 +11,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.1](https://github.com/beam-bots/feetech/compare/v0.2.0...v0.2.1) (2026-01-17)
+
+
+
+
+### Bug Fixes:
+
+* implement sign-magnitude encoding for signed registers (#2) by James Harton
+
 ## [v0.2.0](https://github.com/beam-bots/feetech/compare/v0.1.0...v0.2.0) (2026-01-08)
 
 
