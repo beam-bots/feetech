@@ -448,7 +448,15 @@ defmodule Feetech do
     packet = Protocol.build_sync_read(address, length, ids)
     send_packet(state, packet)
 
-    results = Enum.map(ids, fn _id -> read_sync_response(state, register, mode) end)
+    {results, _buffer} =
+      Enum.reduce(ids, {[], <<>>}, fn _id, {acc, buffer} ->
+        case read_sync_response(state, register, mode, buffer) do
+          {:ok, value, remaining} -> {[{:ok, value} | acc], remaining}
+          error -> {[error | acc], buffer}
+        end
+      end)
+
+    results = Enum.reverse(results)
 
     if Enum.all?(results, &match?({:ok, _}, &1)) do
       values = Enum.map(results, fn {:ok, v} -> v end)
@@ -458,11 +466,11 @@ defmodule Feetech do
     end
   end
 
-  defp read_sync_response(state, register, mode) do
-    case receive_response(state) do
-      {:ok, response} ->
+  defp read_sync_response(state, register, mode, buffer) do
+    case receive_response(state, buffer) do
+      {:ok, response, remaining} ->
         value = decode_response_value(state.control_table, register, response.params, mode)
-        {:ok, value}
+        {:ok, value, remaining}
 
       error ->
         error
@@ -483,15 +491,20 @@ defmodule Feetech do
 
   defp send_and_receive(state, packet) do
     send_packet(state, packet)
-    receive_response(state)
+
+    case receive_response(state) do
+      {:ok, response, _remaining} -> {:ok, response}
+      error -> error
+    end
   end
 
-  defp receive_response(state) do
-    case read_packet(state.uart, state.timeout, state.buffer) do
-      {:ok, packet, _remaining} ->
+  defp receive_response(state, buffer \\ <<>>) do
+    case read_packet(state.uart, state.timeout, buffer) do
+      {:ok, packet, remaining} ->
         case Protocol.parse_response(packet) do
           {:ok, response} ->
-            {:ok, Error.parse_status(response.status) |> Map.put(:params, response.params)}
+            {:ok, Error.parse_status(response.status) |> Map.put(:params, response.params),
+             remaining}
 
           error ->
             error
