@@ -9,7 +9,7 @@ defmodule Feetech.MixProject do
   Driver for Feetech TTL-based servos.
   """
 
-  @version "0.2.1"
+  @version "0.2.2"
 
   def project do
     [
