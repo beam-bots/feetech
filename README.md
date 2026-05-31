@@ -9,7 +9,9 @@ SPDX-License-Identifier: Apache-2.0
 [![CI](https://github.com/beam-bots/feetech/actions/workflows/ci.yml/badge.svg)](https://github.com/beam-bots/feetech/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache--2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Hex version badge](https://img.shields.io/hexpm/v/feetech.svg)](https://hex.pm/packages/feetech)
+[![Hexdocs badge](https://img.shields.io/badge/docs-hexdocs-purple)](https://hexdocs.pm/feetech)
 [![REUSE status](https://api.reuse.software/badge/github.com/beam-bots/feetech)](https://api.reuse.software/info/github.com/beam-bots/feetech)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/beam-bots/feetech)
 
 Elixir driver for Feetech TTL-based serial bus servos (STS/SCS series).
 
