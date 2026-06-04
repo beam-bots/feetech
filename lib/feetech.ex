@@ -66,8 +66,6 @@ defmodule Feetech do
 
   alias Feetech.{ControlTable, Error, Protocol}
 
-  require Feetech.Instruction
-
   @default_baud_rate 1_000_000
   @default_timeout 100
   @read_chunk_timeout 10

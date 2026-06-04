@@ -204,7 +204,7 @@ defmodule Feetech.Protocol do
     param_length = length - 2
 
     case rest do
-      <<params::binary-size(param_length), packet_checksum>> ->
+      <<params::binary-size(^param_length), packet_checksum>> ->
         body = <<id, length, status>> <> params
 
         if valid_checksum?(body, packet_checksum) do
@@ -239,7 +239,7 @@ defmodule Feetech.Protocol do
     packet_length = length + 4
 
     if byte_size(buffer) >= packet_length do
-      <<packet::binary-size(packet_length), remaining::binary>> = buffer
+      <<packet::binary-size(^packet_length), remaining::binary>> = buffer
       {:ok, packet, remaining}
     else
       {:incomplete, buffer}
