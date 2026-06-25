@@ -31,7 +31,7 @@ Add `feetech` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:feetech, "~> 0.2.2"}
+    {:feetech, "~> 0.2.3"}
   ]
 end
 ```
