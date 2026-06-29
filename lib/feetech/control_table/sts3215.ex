@@ -26,8 +26,10 @@ defmodule Feetech.ControlTable.STS3215 do
 
   @steps_per_revolution 4096
   @position_scale 2 * :math.pi() / @steps_per_revolution
-  @speed_unit 50
-  @speed_scale @speed_unit * @position_scale
+  # The STS3215 goal/present speed registers are in encoder steps per second
+  # (one step = one position unit), so the speed scale is just the position
+  # scale: radians per second per step-per-second unit.
+  @speed_scale @position_scale
 
   @impl true
   def model_name, do: "STS3215"
@@ -42,7 +44,8 @@ defmodule Feetech.ControlTable.STS3215 do
   @doc """
   Radians per second per speed unit.
 
-  Speed unit = 50 steps/second
+  The speed register unit is one encoder step per second, so this equals the
+  position scale (radians per step).
   """
   def speed_scale, do: @speed_scale
 

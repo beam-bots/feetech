@@ -82,6 +82,31 @@ defmodule Feetech.ControlTable.STS3215Test do
     end
   end
 
+  describe "speed conversion" do
+    test "speed_scale equals position_scale (register unit is steps/second)" do
+      assert_in_delta STS3215.speed_scale(), STS3215.position_scale(), 1.0e-10
+    end
+
+    test "encodes radians/second to steps/second" do
+      # One full revolution per second = 4096 steps/s = 2π rad/s.
+      {:ok, data} = ControlTable.encode(STS3215, :goal_speed, 2 * :math.pi())
+      assert data == <<0x00, 0x10>>
+    end
+
+    test "decodes steps/second to radians/second" do
+      # 2048 steps/s = half a revolution per second = π rad/s.
+      {:ok, value} = ControlTable.decode(STS3215, :present_speed, <<0x00, 0x08>>)
+      assert_in_delta value, :math.pi(), 0.001
+    end
+
+    test "round-trip conversion preserves value" do
+      original = 1.5
+      {:ok, encoded} = ControlTable.encode(STS3215, :goal_speed, original)
+      {:ok, decoded} = ControlTable.decode(STS3215, :goal_speed, encoded)
+      assert_in_delta decoded, original, STS3215.speed_scale()
+    end
+  end
+
   describe "boolean conversion" do
     test "encodes true to 1" do
       {:ok, data} = ControlTable.encode(STS3215, :torque_enable, true)
