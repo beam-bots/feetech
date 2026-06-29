@@ -11,6 +11,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.2.4](https://github.com/beam-bots/feetech/compare/v0.2.3...v0.2.4) (2026-06-29)
+
+
+
+
+### Bug Fixes:
+
+* correct STS3215 speed register unit (steps/second) (#45) by James Harton
+
 ## [v0.2.3](https://github.com/beam-bots/feetech/compare/v0.2.2...v0.2.3) (2026-06-25)
 
 
