@@ -72,11 +72,9 @@ defmodule Feetech.IntegrationTest do
       assert is_integer(sub) and sub >= 0
     end
 
-    test "reads servo version", %{pid: pid, servo_id: servo_id} do
-      assert {:ok, main} = Feetech.read_raw(pid, servo_id, :servo_version_main)
-      assert {:ok, sub} = Feetech.read_raw(pid, servo_id, :servo_version_sub)
-      assert is_integer(main) and main >= 0
-      assert is_integer(sub) and sub >= 0
+    test "reads model number", %{pid: pid, servo_id: servo_id} do
+      assert {:ok, model_number} = Feetech.read_raw(pid, servo_id, :model_number)
+      assert is_integer(model_number) and model_number > 0
     end
 
     test "reads baud rate", %{pid: pid, servo_id: servo_id} do

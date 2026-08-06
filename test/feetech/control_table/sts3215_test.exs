@@ -105,6 +105,20 @@ defmodule Feetech.ControlTable.STS3215Test do
       {:ok, decoded} = ControlTable.decode(STS3215, :goal_speed, encoded)
       assert_in_delta decoded, original, STS3215.speed_scale()
     end
+
+    test "encodes a negative goal speed as sign-magnitude" do
+      # -4096 steps/s is one reverse revolution per second: magnitude 0x1000
+      # with the sign at bit 15, not two's complement.
+      {:ok, data} = ControlTable.encode(STS3215, :goal_speed, -2 * :math.pi())
+      assert data == <<0x00, 0x90>>
+    end
+
+    test "round-trip conversion preserves a negative goal speed" do
+      original = -1.5
+      {:ok, encoded} = ControlTable.encode(STS3215, :goal_speed, original)
+      {:ok, decoded} = ControlTable.decode(STS3215, :goal_speed, encoded)
+      assert_in_delta decoded, original, STS3215.speed_scale()
+    end
   end
 
   describe "boolean conversion" do

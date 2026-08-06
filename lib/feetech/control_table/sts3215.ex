@@ -13,6 +13,7 @@ defmodule Feetech.ControlTable.STS3215 do
 
     * `:position` - Standard position control (default)
     * `:velocity` - Continuous rotation with speed control
+    * `:pwm` - Open-loop duty cycle, written to `:goal_time`
     * `:step` - Stepper mode for multi-turn positioning
 
   ## Default Settings
@@ -60,8 +61,7 @@ defmodule Feetech.ControlTable.STS3215 do
       # EPROM - persisted settings (address 0-54)
       firmware_version_main: {0, 1, nil},
       firmware_version_sub: {1, 1, nil},
-      servo_version_main: {3, 1, nil},
-      servo_version_sub: {4, 1, nil},
+      model_number: {3, 2, nil},
       id: {5, 1, nil},
       baud_rate: {6, 1, :baud_rate},
       return_delay: {7, 1, nil},
@@ -93,8 +93,13 @@ defmodule Feetech.ControlTable.STS3215 do
       torque_enable: {40, 1, :bool},
       acceleration: {41, 1, nil},
       goal_position: {42, 2, :position_signed},
+      # This register means two different things. In position mode it is an
+      # unsigned count of milliseconds to reach the goal; in PWM mode it is the
+      # duty cycle, sign-magnitude with the sign at bit 10 and a magnitude of
+      # 0..1000. Only one conversion can be declared, so it stays raw and PWM
+      # callers encode the duty themselves.
       goal_time: {44, 2, nil},
-      goal_speed: {46, 2, :speed},
+      goal_speed: {46, 2, :speed_signed},
       torque_limit: {48, 2, 0.001},
       lock: {55, 1, :bool},
 

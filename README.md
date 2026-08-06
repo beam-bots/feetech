@@ -113,7 +113,7 @@ Feetech.write(pid, 1, :mode, :position)
 # Velocity mode - continuous rotation
 Feetech.write(pid, 1, :mode, :velocity)
 Feetech.write(pid, 1, :torque_enable, true)
-Feetech.write_raw(pid, 1, :goal_speed, 500)  # Set rotation speed
+Feetech.write(pid, 1, :goal_speed, 1.5)   # rad/s, negative to reverse
 
 # Step mode - multi-turn positioning
 Feetech.write(pid, 1, :mode, :step)
@@ -182,7 +182,8 @@ mix feetech.debug /dev/ttyUSB0 --baud-rate 115200
 |----------|------|-------------|
 | `:id` | integer | Servo ID (1-253) |
 | `:baud_rate` | integer | Communication baud rate |
-| `:mode` | atom | Operating mode (`:position`, `:velocity`, `:step`) |
+| `:model_number` | integer | Servo model (777 = STS3215, 2825 = STS3250) |
+| `:mode` | atom | Operating mode (`:position`, `:velocity`, `:pwm`, `:step`) |
 | `:min_angle_limit` | float | Minimum position limit (radians) |
 | `:max_angle_limit` | float | Maximum position limit (radians) |
 | `:max_temperature` | integer | Temperature limit (°C) |
@@ -197,8 +198,8 @@ mix feetech.debug /dev/ttyUSB0 --baud-rate 115200
 |----------|------|-------------|
 | `:torque_enable` | boolean | Enable/disable torque |
 | `:goal_position` | float | Target position (radians) |
-| `:goal_speed` | float | Target speed |
-| `:goal_time` | integer | Movement time |
+| `:goal_speed` | float | Target speed (signed; direction matters in velocity mode) |
+| `:goal_time` | integer | Movement time in ms, or PWM duty in PWM mode |
 | `:acceleration` | integer | Acceleration profile |
 | `:lock` | boolean | EEPROM write lock |
 
