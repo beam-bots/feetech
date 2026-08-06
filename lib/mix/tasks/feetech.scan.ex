@@ -127,7 +127,7 @@ defmodule Mix.Tasks.Feetech.Scan do
   defp read_servo_info(pid, id) do
     %{
       firmware: read_firmware_version(pid, id),
-      servo_version: read_servo_version(pid, id),
+      model_number: read_register_raw(pid, id, :model_number),
       baud_rate: read_register(pid, id, :baud_rate),
       mode: read_register(pid, id, :mode),
       torque_enabled: read_register(pid, id, :torque_enable),
@@ -150,12 +150,6 @@ defmodule Mix.Tasks.Feetech.Scan do
   defp read_firmware_version(pid, id) do
     main = read_register_raw(pid, id, :firmware_version_main)
     sub = read_register_raw(pid, id, :firmware_version_sub)
-    format_version(main, sub)
-  end
-
-  defp read_servo_version(pid, id) do
-    main = read_register_raw(pid, id, :servo_version_main)
-    sub = read_register_raw(pid, id, :servo_version_sub)
     format_version(main, sub)
   end
 
@@ -219,7 +213,7 @@ defmodule Mix.Tasks.Feetech.Scan do
   defp temp_str(_), do: "?C"
 
   defp print_verbose_info(info) do
-    Mix.shell().info("    Servo version: #{info.servo_version}")
+    Mix.shell().info("    Model number: #{format_model_number(info.model_number)}")
     Mix.shell().info("    Baud rate: #{format_baud_value(info.baud_rate)}")
     print_if_ok("    Speed: ", info.speed, &format_speed/1)
     print_if_ok("    Load: ", info.load, &format_load/1)
@@ -289,4 +283,11 @@ defmodule Mix.Tasks.Feetech.Scan do
 
   defp format_baud_value({:ok, rate}), do: format_baud(rate)
   defp format_baud_value(_), do: "unknown"
+
+  defp format_model_number({:ok, 777}), do: "777 (STS3215)"
+  defp format_model_number({:ok, 1284}), do: "1284 (SCS0009)"
+  defp format_model_number({:ok, 2825}), do: "2825 (STS3250)"
+  defp format_model_number({:ok, 11_272}), do: "11272 (SM8512BL)"
+  defp format_model_number({:ok, number}), do: to_string(number)
+  defp format_model_number(_), do: "unknown"
 end
