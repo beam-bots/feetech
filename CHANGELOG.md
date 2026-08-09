@@ -11,6 +11,13 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.0](https://github.com/beam-bots/feetech/compare/v0.2.4...v0.3.0) (2026-08-09)
+### Breaking Changes:
+
+* sign the goal speed, and name the model number what it is (#65) by James Harton
+
+
+
 ## [v0.2.4](https://github.com/beam-bots/feetech/compare/v0.2.3...v0.2.4) (2026-06-29)
 
 
