@@ -99,6 +99,76 @@ defmodule Feetech.ControlTable do
   end
 
   @doc """
+  Resolve a run of registers to the single address and length that covers them.
+
+  A `SYNC_WRITE` addresses one contiguous span of the control table, so writing
+  several registers in one instruction is only possible when they sit next to
+  each other, in order. Returns the address to start at and the number of bytes
+  each servo contributes.
+
+  Writing a position, its travel time and its speed together is the reason this
+  exists: the servo begins moving the moment `goal_position` lands, so a speed
+  arriving in a later packet can miss the start of the move entirely.
+
+  ## Examples
+
+      iex> Feetech.ControlTable.contiguous_span(Feetech.ControlTable.STS3215,
+      ...>   [:goal_position, :goal_time, :goal_speed])
+      {:ok, {42, 6}}
+
+  Order matters, because the span is laid out in address order:
+
+      iex> Feetech.ControlTable.contiguous_span(Feetech.ControlTable.STS3215,
+      ...>   [:goal_speed, :goal_position])
+      {:error, {:not_contiguous, :goal_speed, :goal_position}}
+
+  So does adjacency:
+
+      iex> Feetech.ControlTable.contiguous_span(Feetech.ControlTable.STS3215,
+      ...>   [:goal_position, :goal_speed])
+      {:error, {:not_contiguous, :goal_position, :goal_speed}}
+
+  A single register is a span of one:
+
+      iex> Feetech.ControlTable.contiguous_span(Feetech.ControlTable.STS3215, [:goal_position])
+      {:ok, {42, 2}}
+  """
+  @spec contiguous_span(module(), [register_name()]) ::
+          {:ok, {address(), pos_integer()}} | {:error, term()}
+  def contiguous_span(_control_table, []), do: {:error, :no_registers}
+
+  def contiguous_span(control_table, names) when is_list(names) do
+    with {:ok, defs} <- fetch_span_defs(control_table, names) do
+      span(Enum.zip(names, defs))
+    end
+  end
+
+  defp fetch_span_defs(control_table, names) do
+    Enum.reduce_while(names, {:ok, []}, fn name, {:ok, acc} ->
+      case get_register(control_table, name) do
+        {:ok, def} -> {:cont, {:ok, [def | acc]}}
+        {:error, :unknown_register} -> {:halt, {:error, {:unknown_register, name}}}
+      end
+    end)
+    |> case do
+      {:ok, defs} -> {:ok, Enum.reverse(defs)}
+      {:error, _} = error -> error
+    end
+  end
+
+  defp span([{_name, {address, length, _}}]), do: {:ok, {address, length}}
+
+  defp span([{name, {address, length, _}} | [{next_name, {next_address, _, _}} | _] = rest]) do
+    if address + length == next_address do
+      with {:ok, {_, rest_length}} <- span(rest) do
+        {:ok, {address, length + rest_length}}
+      end
+    else
+      {:error, {:not_contiguous, name, next_name}}
+    end
+  end
+
+  @doc """
   Encodes a user value to raw bytes for writing to a register.
   """
   @spec encode(module(), register_name(), term()) :: {:ok, binary()} | {:error, atom()}
