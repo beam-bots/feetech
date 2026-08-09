@@ -62,6 +62,8 @@ defmodule Feetech do
       Feetech.action(pid)
   """
 
+  require Logger
+
   use GenServer
 
   alias Feetech.{ControlTable, Error, Protocol}
@@ -227,23 +229,84 @@ defmodule Feetech do
         {2, 0.0},
         {3, -1.57}
       ])
+
+  Several registers can be written in one instruction by passing a list. Each
+  servo then supplies a value per register, in the same order:
+
+      :ok = Feetech.sync_write(pid, [:goal_position, :goal_time, :goal_speed], [
+        {1, {1.57, 0, 1.0}},
+        {2, {0.0, 0, 1.0}}
+      ] |> Enum.map(fn {id, {p, t, s}} -> {id, [p, t, s]} end))
+
+  This matters for motion. A servo starts moving the moment `goal_position`
+  lands, so a speed sent in a later packet can arrive after the move has begun
+  and be ignored for that move — intermittently, depending on timing. Sending
+  the three together removes the race.
+
+  The registers must form a contiguous span in address order, because that is
+  what a `SYNC_WRITE` addresses. Check a list once at start-up with
+  `Feetech.ControlTable.contiguous_span/2`; this function does not, since it
+  sits in the control loop and the answer never changes.
   """
-  @spec sync_write(GenServer.server(), register_name(), [{servo_id(), term()}]) ::
-          :ok | {:error, Error.error()}
+  @spec sync_write(GenServer.server(), register_name() | [register_name()], [
+          {servo_id(), term() | [term()]}
+        ]) :: :ok | {:error, term()}
+  def sync_write(server, registers, servo_values) when is_list(registers),
+    do: sync_write_span(server, registers, servo_values, :converted)
+
   def sync_write(server, register, servo_values) do
-    GenServer.cast(server, {:sync_write, register, servo_values, :converted})
+    GenServer.cast(
+      server,
+      {:sync_write, [register], servo_values_as_lists(servo_values), :converted}
+    )
+
     :ok
   end
 
   @doc """
   Writes raw values to multiple servos simultaneously.
+
+  Takes the same forms as `sync_write/3`.
   """
-  @spec sync_write_raw(GenServer.server(), register_name(), [{servo_id(), integer()}]) ::
-          :ok | {:error, Error.error()}
+  @spec sync_write_raw(GenServer.server(), register_name() | [register_name()], [
+          {servo_id(), integer() | [integer()]}
+        ]) :: :ok | {:error, term()}
+  def sync_write_raw(server, registers, servo_values) when is_list(registers),
+    do: sync_write_span(server, registers, servo_values, :raw)
+
   def sync_write_raw(server, register, servo_values) do
-    GenServer.cast(server, {:sync_write, register, servo_values, :raw})
+    GenServer.cast(server, {:sync_write, [register], servo_values_as_lists(servo_values), :raw})
     :ok
   end
+
+  # Whether a register list forms a valid span depends only on the control
+  # table, so it is a question to settle once at start-up with
+  # `Feetech.ControlTable.contiguous_span/2` rather than on every write. This
+  # stays a cast: it is the hot path, called once per control-loop tick.
+  #
+  # The value count is checked here because it is a per-call mistake and costs
+  # nothing to catch.
+  defp sync_write_span(server, registers, servo_values, mode) do
+    with :ok <- validate_value_counts(registers, servo_values) do
+      GenServer.cast(server, {:sync_write, registers, servo_values, mode})
+      :ok
+    end
+  end
+
+  defp validate_value_counts(registers, servo_values) do
+    expected = length(registers)
+
+    Enum.find_value(servo_values, :ok, fn {id, values} ->
+      cond do
+        not is_list(values) -> {:error, {:expected_a_list_of_values, id, expected}}
+        length(values) != expected -> {:error, {:wrong_value_count, id, length(values), expected}}
+        true -> nil
+      end
+    end)
+  end
+
+  defp servo_values_as_lists(servo_values),
+    do: Enum.map(servo_values, fn {id, value} -> {id, [value]} end)
 
   @doc """
   Reads converted values from multiple servos.
@@ -416,20 +479,35 @@ defmodule Feetech do
     {:noreply, state}
   end
 
-  def handle_cast({:sync_write, register, servo_values, mode}, state) do
-    with {:ok, {address, length, _conversion}} <-
-           ControlTable.get_register(state.control_table, register) do
-      data =
-        Enum.map(servo_values, fn {id, value} ->
-          {:ok, encoded} = encode_value(state.control_table, register, value, mode)
-          {id, encoded}
-        end)
+  def handle_cast({:sync_write, registers, servo_values, mode}, state) do
+    case ControlTable.contiguous_span(state.control_table, registers) do
+      {:ok, {address, length}} ->
+        data =
+          Enum.map(servo_values, fn {id, values} ->
+            {id, encode_span(state.control_table, registers, values, mode)}
+          end)
 
-      packet = Protocol.build_sync_write(address, length, data)
-      send_packet(state, packet)
+        send_packet(state, Protocol.build_sync_write(address, length, data))
+
+      {:error, reason} ->
+        Logger.warning(
+          "sync_write of #{inspect(registers)} is not a contiguous span " <>
+            "(#{inspect(reason)}); nothing was written. Check the register list " <>
+            "with Feetech.ControlTable.contiguous_span/2."
+        )
     end
 
     {:noreply, state}
+  end
+
+  defp encode_span(control_table, registers, values, mode) do
+    registers
+    |> Enum.zip(values)
+    |> Enum.map(fn {register, value} ->
+      {:ok, encoded} = encode_value(control_table, register, value, mode)
+      encoded
+    end)
+    |> IO.iodata_to_binary()
   end
 
   @impl true
