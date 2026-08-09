@@ -11,6 +11,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.4.0](https://github.com/beam-bots/feetech/compare/v0.3.0...v0.4.0) (2026-08-09)
+
+
+
+
+### Features:
+
+* sync write a span of registers in one instruction (#67) by James Harton
+
 ## [v0.3.0](https://github.com/beam-bots/feetech/compare/v0.2.4...v0.3.0) (2026-08-09)
 ### Breaking Changes:
 
