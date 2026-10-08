@@ -158,9 +158,6 @@ defmodule Mix.Tasks.Feetech.SetId do
       :ok ->
         :ok
 
-      {:ok, _} ->
-        :ok
-
       {:error, reason} ->
         Mix.shell().error("Failed to unlock EEPROM: #{inspect(reason)}")
         exit({:shutdown, 1})
@@ -174,9 +171,6 @@ defmodule Mix.Tasks.Feetech.SetId do
       :ok ->
         :ok
 
-      {:ok, _} ->
-        :ok
-
       {:error, reason} ->
         Mix.shell().error("Failed to write ID: #{inspect(reason)}")
         exit({:shutdown, 1})
@@ -188,7 +182,6 @@ defmodule Mix.Tasks.Feetech.SetId do
 
     case write_raw(pid, id, :lock, 1) do
       :ok -> :ok
-      {:ok, _} -> :ok
       {:error, reason} -> Mix.shell().info("Note: Could not lock EEPROM: #{inspect(reason)}")
     end
   end
@@ -201,7 +194,10 @@ defmodule Mix.Tasks.Feetech.SetId do
   end
 
   defp write_raw(pid, id, register, value) do
-    Feetech.write_raw(pid, id, register, value, await_response: true)
+    case Feetech.write_raw(pid, id, register, value, await_response: true) do
+      {:ok, _status} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp verify_new_id(pid, new_id) do
