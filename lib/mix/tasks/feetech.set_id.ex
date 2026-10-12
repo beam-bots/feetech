@@ -154,8 +154,8 @@ defmodule Mix.Tasks.Feetech.SetId do
   defp unlock_eeprom!(pid, id) do
     Mix.shell().info("Unlocking EEPROM...")
 
-    case Feetech.write_raw(pid, id, :lock, 0) do
-      {:ok, _} ->
+    case write_raw(pid, id, :lock, 0) do
+      :ok ->
         :ok
 
       {:error, reason} ->
@@ -167,8 +167,8 @@ defmodule Mix.Tasks.Feetech.SetId do
   defp write_new_id!(pid, current_id, new_id) do
     Mix.shell().info("Setting ID to #{new_id}...")
 
-    case Feetech.write_raw(pid, current_id, :id, new_id) do
-      {:ok, _} ->
+    case write_raw(pid, current_id, :id, new_id) do
+      :ok ->
         :ok
 
       {:error, reason} ->
@@ -180,9 +180,23 @@ defmodule Mix.Tasks.Feetech.SetId do
   defp lock_eeprom(pid, id) do
     Mix.shell().info("Locking EEPROM...")
 
-    case Feetech.write_raw(pid, id, :lock, 1) do
-      {:ok, _} -> :ok
+    case write_raw(pid, id, :lock, 1) do
+      :ok -> :ok
       {:error, reason} -> Mix.shell().info("Note: Could not lock EEPROM: #{inspect(reason)}")
+    end
+  end
+
+  # Broadcast instructions do not reliably produce a response. Targeted writes
+  # request one so their communication errors reach the task instead of being
+  # reduced to the default :ok return value.
+  defp write_raw(pid, 0xFE, register, value) do
+    Feetech.write_raw(pid, 0xFE, register, value)
+  end
+
+  defp write_raw(pid, id, register, value) do
+    case Feetech.write_raw(pid, id, register, value, await_response: true) do
+      {:ok, _status} -> :ok
+      {:error, reason} -> {:error, reason}
     end
   end
 
