@@ -11,6 +11,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.4.1](https://github.com/beam-bots/feetech/compare/v0.4.0...v0.4.1) (2026-10-12)
+
+
+
+
+### Bug Fixes:
+
+* correct set_id task pattern matches (#91) by Damir Batinović
+
 ## [v0.4.0](https://github.com/beam-bots/feetech/compare/v0.3.0...v0.4.0) (2026-08-09)
 
 
